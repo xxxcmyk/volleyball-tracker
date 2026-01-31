@@ -16,8 +16,8 @@
         input, select { -webkit-user-select: text; border: 1px solid #E9D5FF; border-radius: 1rem; padding: 0.75rem; background: white; outline: none; width: 100%; font-size: 14px; }
         .scroll-hide::-webkit-scrollbar { display: none; }
         .set-tab-btn { padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; background: white; border: 1px solid #D8B4FE; white-space: nowrap; }
-        .set-tab-btn.active { background: #8B5CF6 !important; color: white !important; }
-        .stats-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 5px; text-align: center; font-size: 10px; margin-bottom: 10px; }
+        .set-tab-btn.active { background: #8B5CF6 !important; color: white !important; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); }
+        .stats-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.2fr; gap: 4px; text-align: center; font-size: 10px; margin-bottom: 10px; }
         .stats-header { font-weight: bold; opacity: 0.6; border-bottom: 1px solid #D8B4FE; padding-bottom: 4px; }
     </style>
 </head>
@@ -25,15 +25,12 @@
 
     <div id="loading-screen" class="fixed inset-0 bg-[#F3E8FF] z-[5000] flex flex-col items-center justify-center">
         <div class="text-4xl animate-bounce mb-2">😈</div>
-        <p class="text-xs font-bold opacity-40 uppercase">Kuromi Loading...</p>
     </div>
 
     <!-- 1. 登入頁面 -->
     <div id="page-login" class="page items-center justify-center p-6 text-center">
-        <div class="mb-12">
-            <h1 class="text-5xl font-black mb-2 text-purple-800 tracking-tighter">KUROMI</h1>
-            <p class="text-lg opacity-40 font-bold italic">Volleyball Tracker 😈</p>
-        </div>
+        <h1 class="text-5xl font-black mb-2 text-purple-800 tracking-tighter">KUROMI</h1>
+        <p class="text-lg opacity-40 font-bold italic mb-12">Volleyball Tracker 😈</p>
         <button onclick="login()" class="kuromi-card px-10 py-5 font-black shadow-2xl flex items-center gap-4 btn-active bg-white text-lg border-2 border-purple-100">
             <img src="https://www.google.com/favicon.ico" class="w-6 h-6"> 使用 Google 登入
         </button>
@@ -41,8 +38,8 @@
 
     <!-- 2. 設定頁面 -->
     <div id="page-setup" class="page p-6">
-        <div class="flex justify-between items-center mb-6 mt-4 px-2">
-            <h1 class="text-3xl font-black text-[#8B5CF6]">新比賽設定</h1>
+        <div class="flex justify-between items-center mb-6 mt-4 px-2 text-[#8B5CF6]">
+            <h1 class="text-3xl font-black">新比賽設定</h1>
             <div class="flex flex-col items-end">
                 <button onclick="viewHistory('setup')" class="text-sm opacity-60 font-black">📚 歷史紀錄</button>
                 <button onclick="logout()" class="text-[10px] opacity-30 underline mt-1">登出</button>
@@ -167,6 +164,7 @@
         let matchData = { scoreA: 0, scoreB: 0, setsA: 0, setsB: 0, isBench: false, logs: [], setsHistory: {}, info: { winTarget: 3 } };
         let historyStack = [];
         let historySource = 'setup';
+        let matchesCache = {}; // 用於暫存歷史紀錄數據
 
         onAuthStateChanged(auth, (user) => {
             document.getElementById('loading-screen').classList.add('hidden');
@@ -185,7 +183,7 @@
 
         window.startMatch = () => {
             const opp = document.getElementById('setup-opponent').value;
-            if (!opp) return alert("請填寫對手名字！");
+            if (!opp) return alert("記得填寫對手名字！");
             matchDocId = "match_" + Date.now();
             matchData.info = { date: document.getElementById('setup-date').value, type: document.getElementById('setup-type').value, winTarget: parseInt(document.getElementById('setup-format').value), opponent: opp, timestamp: Date.now() };
             document.getElementById('display-info').innerText = `${matchData.info.type} | ${matchData.info.opponent}`;
@@ -200,7 +198,7 @@
             historyStack.push(JSON.parse(JSON.stringify(matchData)));
             if (level === 1) matchData.scoreA++;
             if (level === 3) matchData.scoreB++;
-            const resTxt = level === 1 ? "得分 (+1)" : (level === 2 ? "成功過網" : "失敗 (對手+1)");
+            const resTxt = level === 1 ? "得分(+1)" : (level === 2 ? "過網" : "失敗(對手+1)");
             matchData.logs.unshift({ time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), action, result: resTxt, score: `${matchData.scoreA}:${matchData.scoreB}`, level: level });
             updateDisplay();
             autoSaveLocal();
@@ -220,7 +218,10 @@
             const stats = {};
             ['殺球', '攔網', '開球', '接球'].forEach(act => {
                 const actLogs = matchData.logs.filter(l => l.action === act);
-                stats[act] = { success: actLogs.filter(l => l.level === 1 || l.level === 2).length, fail: actLogs.filter(l => l.level === 3).length };
+                stats[act] = { 
+                    success: actLogs.filter(l => l.level === 1 || l.level === 2).length, 
+                    fail: actLogs.filter(l => l.level === 3).length 
+                };
             });
             matchData.setsHistory[setNum] = { score: `${matchData.scoreA}:${matchData.scoreB}`, logs: [...matchData.logs], stats: stats };
             if (matchData.scoreA > matchData.scoreB) matchData.setsA++; else matchData.setsB++;
@@ -231,7 +232,7 @@
             });
 
             if (matchData.setsA === matchData.info.winTarget || matchData.setsB === matchData.info.winTarget) {
-                alert("全場結束！😈");
+                alert("全場結束！紀錄已同步 😈");
                 localStorage.removeItem('kuromi_match_temp');
                 resetMatchVars();
                 showPage('setup');
@@ -247,25 +248,29 @@
             historySource = source;
             showPage('history');
             const list = document.getElementById('history-list');
-            list.innerHTML = "<p class='text-center py-10 opacity-30'>召喚數據中...</p>";
+            list.innerHTML = "<p class='text-center opacity-30 py-10'>召喚數據中...</p>";
             try {
                 const q = query(collection(db, "matches"), where("userId", "==", currentUser.uid));
                 const snap = await getDocs(q);
-                let docs = snap.docs.sort((a, b) => (b.data().createdAt?.seconds || 0) - (a.data().createdAt?.seconds || 0));
-                list.innerHTML = docs.length === 0 ? "<p class='text-center py-10 opacity-30'>未有紀錄</p>" : "";
-                docs.forEach(d => {
+                let sortedDocs = snap.docs.sort((a, b) => (b.data().createdAt?.seconds || 0) - (a.data().createdAt?.seconds || 0));
+                list.innerHTML = sortedDocs.length === 0 ? "<p class='text-center py-10 opacity-30'>未有紀錄</p>" : "";
+                
+                matchesCache = {}; // 清空暫存
+                sortedDocs.forEach(d => {
                     const m = d.data();
                     const mid = d.id;
-                    const sets = Object.keys(m.setsHistory || {}).sort();
-                    window["hData_"+mid] = m.setsHistory;
+                    matchesCache[mid] = m.setsHistory; // 存入暫存
+                    const sets = Object.keys(m.setsHistory || {}).sort((a,b) => a-b);
+                    
                     list.innerHTML += `
-                        <div class="kuromi-card p-6 shadow-md mb-4 bg-white">
-                            <div class="flex justify-between text-[10px] font-bold mb-2 opacity-40 uppercase">${m.info?.date || '舊紀錄'} | ${m.info?.type || '普通'}</div>
-                            <p class="font-black text-lg mb-3">vs ${m.info?.opponent || '未知'} <span class="text-purple-600 ml-2">${m.finalSets || m.sets || ''}</span></p>
-                            <div class="flex gap-2 mb-3 overflow-x-auto pb-1 scroll-hide">
-                                ${sets.map(k => `<button onclick="showSetDetail('${mid}', '${k}')" class="bg-purple-100 px-4 py-1 rounded-full text-[10px] font-bold">第 ${k} 局</button>`).join('')}
+                        <div class="kuromi-card p-6 shadow-md mb-4 bg-white border border-purple-50">
+                            <div class="flex justify-between text-[10px] font-bold mb-2 opacity-40 uppercase">${m.info?.date || '舊紀錄'} | ${m.info?.type || ''}</div>
+                            <p class="font-black text-lg mb-3 text-[#4C1D95]">vs ${m.info?.opponent || ''} <span class="text-[#8B5CF6] ml-2">${m.finalSets || ''}</span></p>
+                            <div class="flex gap-2 mb-3 overflow-x-auto pb-2 scroll-hide">
+                                ${sets.map(k => `<button onclick="showSetDetail('${mid}', '${k}')" class="set-tab-btn" id="btn-${mid}-${k}">第 ${k} 局</button>`).join('')}
                             </div>
-                            <div id="det-${mid}" class="hidden text-[10px] bg-purple-50 p-4 rounded-2xl max-h-80 overflow-y-auto space-y-3 shadow-inner"></div>
+                            <div id="det-${mid}" class="hidden text-[10px] bg-purple-50/50 p-4 rounded-3xl space-y-3 shadow-inner border border-purple-100"></div>
+                            <p class="text-[10px] opacity-40 mt-3 italic">${m.memo || ""}</p>
                         </div>`;
                 });
             } catch (e) { list.innerHTML = "讀取失敗"; }
@@ -273,20 +278,29 @@
 
         window.showSetDetail = (mid, k) => {
             const div = document.getElementById('det-'+mid);
-            const set = window["hData_"+mid][k];
+            const setsData = matchesCache[mid]; // 由暫存讀取
+            if (!setsData || !setsData[k]) return;
+            const set = setsData[k];
+            
             div.classList.remove('hidden');
             document.querySelectorAll(`[id^="btn-${mid}-"]`).forEach(b => b.classList.remove('active'));
-            document.getElementById(`btn-${mid}-${k}`).classList.add('active');
+            const activeBtn = document.getElementById(`btn-${mid}-${k}`);
+            if(activeBtn) activeBtn.classList.add('active');
             
-            let statsHtml = `<div class="stats-grid"><div class="stats-header">項目</div><div class="stats-header">成功</div><div class="stats-header">失敗</div><div class="stats-header">率</div>`;
-            if (set.stats) {
-                for (const [action, val] of Object.entries(set.stats)) {
-                    const total = val.success + val.fail;
-                    statsHtml += `<div>${action}</div><div class="text-pink-500 font-bold">${val.success}</div><div>${val.fail}</div><div class="bg-purple-100 rounded-full font-black">${total === 0 ? '0%' : Math.round(val.success/total*100)+'%'}</div>`;
-                }
-            } else { statsHtml = "<p class='opacity-50 italic mb-2 text-center'>此舊紀錄無統計表</p>"; }
+            let statsHtml = `<div class="stats-grid"><div class="stats-header">項目</div><div class="stats-header">成功</div><div class="stats-header">失敗</div><div class="stats-header">成功率</div>`;
+            const actions = ['殺球', '攔網', '開球', '接球'];
             
-            div.innerHTML = `<p class="font-black text-purple-600 border-b border-purple-200 pb-2 mb-2 italic">比分: ${set.score}</p>` + statsHtml + `<div class="mt-4 space-y-1">` + (set.logs || []).map(l => `<div class="flex justify-between border-b border-white py-1"><span>${l.time} ${l.action} ${l.result}</span> <span class="font-bold">${l.score}</span></div>`).join('') + `</div>`;
+            actions.forEach(action => {
+                const val = (set.stats && set.stats[action]) ? set.stats[action] : { success: 0, fail: 0 };
+                const total = val.success + val.fail;
+                const rate = total === 0 ? "0%" : Math.round((val.success / total) * 100) + "%";
+                statsHtml += `<div>${action}</div><div class="text-pink-500 font-bold">${val.success}</div><div>${val.fail}</div><div class="bg-white px-2 py-0.5 rounded-full font-black text-purple-600 border border-purple-100">${rate}</div>`;
+            });
+            statsHtml += `</div>`;
+            
+            const logsHtml = (set.logs || []).map(l => `<div class="flex justify-between border-b border-white/50 py-1 opacity-70"><span>${l.time} ${l.action} ${l.result}</span> <span class="font-bold">${l.score}</span></div>`).join('');
+            
+            div.innerHTML = `<p class="font-black text-[#8B5CF6] border-b border-purple-200 pb-2 mb-2 italic">該局比分: ${set.score}</p>` + statsHtml + `<div class="mt-4 space-y-1">` + logsHtml + `</div>`;
         };
 
         window.autoSaveLocal = () => localStorage.setItem('kuromi_match_temp', JSON.stringify({matchData, matchDocId}));
@@ -313,7 +327,7 @@
             const grid = document.getElementById('on-court-actions');
             grid.innerHTML = '';
             ['殺球', '攔網', '開球', '接球'].forEach(act => {
-                grid.innerHTML += `<div class="kuromi-card p-4 flex flex-col gap-2 shadow-sm text-center border-2 border-white/50"><p class="font-black text-sm uppercase">${act}</p><button onclick="recordScore('A', '${act}', 1)" class="bg-[#FFD1E8] text-[10px] font-bold py-3 rounded-2xl btn-active shadow-sm">得分(+1)</button><button onclick="recordScore('A', '${act}', 2)" class="bg-[#E9D5FF] text-[10px] font-bold py-3 rounded-2xl btn-active shadow-sm">成功過網</button><button onclick="recordScore('B', '${act}', 3)" class="bg-[#4C1D95] text-white text-[10px] font-bold py-3 rounded-2xl btn-active shadow-sm">失敗(對手+1)</button></div>`;
+                grid.innerHTML += `<div class="kuromi-card p-4 flex flex-col gap-2 shadow-sm text-center border-2 border-white/50"><p class="font-black text-sm uppercase">${act}</p><button onclick="recordScore('A', '${act}', 1)" class="bg-[#FFD1E8] text-[10px] font-bold py-3 rounded-2xl btn-active shadow-sm">得分(+1)</button><button onclick="recordScore('A', '${act}', 2)" class="bg-[#E9D5FF] text-[10px] font-bold py-3 rounded-2xl btn-active shadow-sm">過網</button><button onclick="recordScore('B', '${act}', 3)" class="bg-[#4C1D95] text-white text-[10px] font-bold py-3 rounded-2xl btn-active shadow-sm">失敗(對手+1)</button></div>`;
             });
         }
         document.getElementById('setup-date').valueAsDate = new Date();
