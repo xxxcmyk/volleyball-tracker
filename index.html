@@ -2,129 +2,136 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kuromi 排球計分器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuromi 排球大師</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDK (這讓 App 能連上雲端) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // 🔥 這裡換成妳剛才在 Firebase 複製的那段 Config 🔥
+        const firebaseConfig = {
+            apiKey: "你的APIKEY",
+            authDomain: "你的域名",
+            projectId: "你的專案ID",
+            storageBucket: "你的儲存空間",
+            messagingSenderId: "你的發送ID",
+            appId: "你的APPID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // --- 全域變數 ---
+        let user = null;
+        let currentMatch = null;
+        let matchLogs = [];
+        let scoreA = 0, scoreB = 0, setsA = 0, setsB = 0;
+        let isBench = false;
+
+        // --- 核心功能：Google 登入 ---
+        window.login = async () => {
+            const result = await signInWithPopup(auth, provider);
+            user = result.user;
+            showPage('setup-page');
+        };
+
+        // --- 核心功能：開始比賽 ---
+        window.startMatch = async () => {
+            const date = document.getElementById('matchDate').value;
+            const type = document.getElementById('matchType').value;
+            const opponent = document.getElementById('opponent').value;
+            
+            if(!opponent) return alert("請輸入對手名字！");
+
+            currentMatch = { date, type, opponent, owner: user.uid, startTime: serverTimestamp() };
+            showPage('tracker-page');
+            updateUI();
+        };
+
+        // --- 核心功能：計分邏輯 (三層按鈕) ---
+        window.recordAction = async (action, result) => {
+            // result: 1 = 直接得分, 2 = 成功過網, 3 = 失敗
+            let logText = `[${action}] `;
+            
+            if (result === 1) { 
+                scoreA++; logText += "直接得分！(+1)"; 
+            } else if (result === 3) { 
+                scoreB++; logText += "失敗 (對手+1)"; 
+            } else { 
+                logText += "成功過網 (比分不變)"; 
+            }
+
+            // 儲存到雲端紀錄 (每一分都存)
+            const logEntry = {
+                matchId: "", // 後續補上
+                timestamp: new Date().toLocaleTimeString(),
+                action: action,
+                result: result,
+                score: `${scoreA}:${scoreB}`,
+                isBench: isBench
+            };
+            matchLogs.unshift(logEntry); // 放在紀錄表最上面
+            
+            checkSetEnd();
+            updateUI();
+        };
+
+        // --- 儲存比賽到 Firebase ---
+        window.saveMatchToCloud = async () => {
+            await addDoc(collection(db, "matches"), {
+                ...currentMatch,
+                finalScore: `${setsA}:${setsB}`,
+                logs: matchLogs
+            });
+            alert("數據已同步至 Google 雲端！");
+            showPage('setup-page');
+        };
+
+        // (其他 UI 切換邏輯...)
+        // ... 此處簡略，完整代碼可放在 GitHub 上 ...
+    </script>
     <style>
-        body { background-color: #F3E8FF; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .kuromi-card { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.4); }
-        .btn-active { transform: scale(0.95); }
+        .kuromi-bg { background-color: #F3E8FF; }
+        .btn-pink { background-color: #FFD1E8; } /* 直接得分 */
+        .btn-purple { background-color: #E9D5FF; } /* 成功過網 */
+        .btn-dark { background-color: #4C1D95; color: white; } /* 失敗 */
     </style>
 </head>
-<body class="p-4 text-[#4C1D95]">
-    <div id="app" class="max-w-md mx-auto">
-        <!-- 頂部資訊 -->
-        <div class="flex justify-between items-center mb-4">
+<body class="kuromi-bg text-[#4C1D95]">
+    <!-- 1. 登入頁 -->
+    <div id="login-page" class="flex flex-col items-center justify-center min-h-screen">
+        <h1 class="text-3xl font-bold mb-8">Kuromi 排球數據庫 😈</h1>
+        <button onclick="login()" class="bg-white px-8 py-3 rounded-full shadow-md font-bold">使用 Google 帳號登入</button>
+    </div>
+
+    <!-- 2. 初始化頁面 -->
+    <div id="setup-page" class="hidden p-6">
+        <h2 class="text-xl font-bold mb-4">建立新比賽</h2>
+        <div class="bg-white/60 p-6 rounded-3xl space-y-4">
             <div>
-                <select id="matchType" class="bg-transparent font-bold text-lg outline-none">
-                    <option>🏆 聯賽</option><option>📊 排位賽</option><option>🎖️ 錦標賽</option><option>🏐 普通比賽</option>
+                <label class="block text-sm opacity-60">比賽日期</label>
+                <input type="date" id="matchDate" class="w-full bg-transparent border-b border-purple-300 py-2">
+            </div>
+            <div>
+                <label class="block text-sm opacity-60">賽事種類</label>
+                <select id="matchType" class="w-full bg-transparent border-b border-purple-300 py-2">
+                    <option>聯賽</option><option>排位賽</option><option>錦標賽</option><option>普通比賽</option>
                 </select>
-                <div id="currentDate" class="text-xs opacity-60">2024-05-20</div>
             </div>
-            <button onclick="undo()" class="p-2 bg-white rounded-full shadow-sm">↩ 返回</button>
-        </div>
-
-        <!-- 比分板 -->
-        <div class="kuromi-card rounded-[30px] p-6 shadow-sm mb-6 text-center">
-            <div class="flex justify-around items-center">
-                <div>
-                    <div class="text-xs opacity-60 mb-1">我方</div>
-                    <div id="scoreA" class="text-6xl font-black text-[#8B5CF6]">0</div>
-                    <div id="setsA" class="mt-2 text-sm font-bold text-pink-400">Sets: 0</div>
-                </div>
-                <div class="text-3xl opacity-20">:</div>
-                <div>
-                    <div class="text-xs opacity-60 mb-1">對手</div>
-                    <div id="scoreB" class="text-6xl font-black opacity-40">0</div>
-                    <div id="setsB" class="mt-2 text-sm font-bold opacity-20">Sets: 0</div>
-                </div>
+            <div>
+                <label class="block text-sm opacity-60">對手名稱</label>
+                <input type="text" id="opponent" placeholder="輸入對手球隊..." class="w-full bg-transparent border-b border-purple-300 py-2">
             </div>
+            <button onclick="startMatch()" class="w-full bg-purple-500 text-white py-4 rounded-2xl font-bold shadow-lg mt-4">開始記錄比賽</button>
         </div>
-
-        <!-- 男友狀態切換 -->
-        <div class="flex justify-center mb-6">
-            <button id="statusBtn" onclick="toggleStatus()" class="px-6 py-2 rounded-full bg-[#FFD1E8] font-bold shadow-sm transition-all">
-                😈 男友在場上
-            </button>
-        </div>
-
-        <!-- 按鈕區 -->
-        <div id="actionGrid" class="grid grid-cols-2 gap-3 mb-6">
-            <!-- 由 JavaScript 動態生成 -->
-        </div>
-
-        <!-- 通用加分 -->
-        <div class="grid grid-cols-2 gap-3 pt-4 border-t border-purple-200">
-            <button onclick="changeScore('A')" class="py-4 bg-purple-400 text-white rounded-2xl font-bold">隊友得分</button>
-            <button onclick="changeScore('B')" class="py-4 bg-gray-400 text-white rounded-2xl font-bold">對手得分</button>
-        </div>
-
-        <!-- 備註 -->
-        <textarea id="memo" placeholder="寫下當前備註..." class="w-full mt-6 p-4 rounded-2xl bg-white/50 border-none text-sm h-24 outline-none"></textarea>
+        <button onclick="viewHistory()" class="w-full mt-4 text-sm opacity-50 underline">查看歷史數據</button>
     </div>
 
-    <!-- 彈出確認視窗 -->
-    <div id="confirmBox" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-6 z-50">
-        <div class="bg-white rounded-[30px] p-8 w-full max-w-sm text-center">
-            <h2 class="text-xl font-bold mb-2">本局結束了嗎？😈</h2>
-            <p id="confirmScore" class="mb-6 opacity-60">25 : 23</p>
-            <button onclick="confirmSet()" class="w-full py-3 bg-[#8B5CF6] text-white rounded-full font-bold mb-3">確定結算</button>
-            <button onclick="hideConfirm()" class="w-full py-3 bg-gray-100 rounded-full font-bold text-gray-400">按錯了</button>
-        </div>
-    </div>
-
-    <script>
-        let data = { scoreA: 0, scoreB: 0, setsA: 0, setsB: 0, isBench: false };
-        let history = [];
-        const actions = ['殺球', '攔網', '開球', '接球'];
-
-        function updateUI() {
-            document.getElementById('scoreA').innerText = data.scoreA;
-            document.getElementById('scoreB').innerText = data.scoreB;
-            document.getElementById('setsA').innerText = `Sets: ${data.setsA}`;
-            document.getElementById('setsB').innerText = `Sets: ${data.setsB}`;
-            document.getElementById('statusBtn').innerText = data.isBench ? '😴 男友後備中' : '😈 男友在場上';
-            document.getElementById('statusBtn').style.backgroundColor = data.isBench ? '#E2E8F0' : '#FFD1E8';
-            
-            const grid = document.getElementById('actionGrid');
-            grid.innerHTML = '';
-            if (!data.isBench) {
-                actions.forEach(act => {
-                    grid.innerHTML += `
-                        <div class="bg-white/60 p-3 rounded-2xl text-center border border-white">
-                            <div class="font-bold text-sm mb-2">${act}</div>
-                            <button onclick="changeScore('A', '${act}')" class="w-full py-2 bg-pink-100 rounded-lg text-xs font-bold mb-1">得分 (+1)</button>
-                            <button onclick="changeScore('B', '${act}')" class="w-full py-2 bg-gray-100 rounded-lg text-xs">失敗 (對手+1)</button>
-                        </div>`;
-                });
-            }
-        }
-
-        function changeScore(team, act = null) {
-            history.push(JSON.parse(JSON.stringify(data)));
-            if (team === 'A') data.scoreA++; else data.scoreB++;
-            
-            const target = (data.setsA + data.setsB === 4) ? 15 : 25;
-            if ((data.scoreA >= target || data.scoreB >= target) && Math.abs(data.scoreA - data.scoreB) >= 2) {
-                document.getElementById('confirmScore').innerText = `${data.scoreA} : ${data.scoreB}`;
-                document.getElementById('confirmBox').classList.remove('hidden');
-            }
-            updateUI();
-        }
-
-        function confirmSet() {
-            if (data.scoreA > data.scoreB) data.setsA++; else data.setsB++;
-            data.scoreA = 0; data.scoreB = 0;
-            hideConfirm();
-            updateUI();
-        }
-
-        function hideConfirm() { document.getElementById('confirmBox').classList.add('hidden'); }
-        function toggleStatus() { data.isBench = !data.isBench; updateUI(); }
-        function undo() { if (history.length > 0) { data = history.pop(); updateUI(); } }
-
-        document.getElementById('currentDate').innerText = new Date().toLocaleDateString();
-        updateUI();
-    </script>
+    <!-- 3. 計分追蹤頁 (略，結構同上一個版本但增加詳細日誌顯示) -->
 </body>
 </html>
