@@ -7,136 +7,96 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        /* 禁止縮放與系統干擾 */
         * { touch-action: manipulation; -webkit-user-select: none; }
-        body { font-family: 'Nunito', sans-serif; background-color: #F3E8FF; color: #4C1D95; overflow-x: hidden; }
+        body { font-family: 'Nunito', sans-serif; background-color: #F3E8FF; color: #4C1D95; }
         .kuromi-card { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.4); border-radius: 2rem; }
-        .btn-active:active { transform: scale(0.92); transition: 0.1s; }
-        .hidden { display: none; }
-        .action-btn { font-size: 11px; font-weight: 800; padding: 12px 4px; border-radius: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .set-tab-btn { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: bold; background: white; border: 1px solid #D8B4FE; transition: 0.2s; }
-        .set-tab-btn.active { background: #8B5CF6 !important; color: white !important; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); }
-        input, select { -webkit-user-select: text; }
+        .hidden { display: none !important; }
+        .btn-active:active { transform: scale(0.95); transition: 0.1s; }
+        input, select, textarea { -webkit-user-select: text; }
     </style>
 </head>
 <body>
 
-    <!-- 載入中遮罩 -->
-    <div id="loading" class="fixed inset-0 bg-[#F3E8FF] z-[200] flex flex-col items-center justify-center font-bold">
-        <div class="mb-4 text-4xl animate-bounce">😈</div>
-        <p class="opacity-50">正在同步 Google 數據...</p>
-    </div>
+    <!-- 錯誤顯示區域 (除錯用) -->
+    <div id="error-display" class="hidden fixed top-0 left-0 w-full bg-red-500 text-white text-[10px] p-2 z-[999] break-all"></div>
 
-    <!-- 頁面 1: 登入 -->
-    <div id="page-login" class="hidden min-h-screen flex flex-col items-center justify-center p-6 text-center">
+    <!-- 1. 登入頁面 -->
+    <div id="page-login" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <h1 class="text-4xl font-black mb-2">KUROMI</h1>
-        <p class="text-lg opacity-60 mb-12">Volleyball Master Pro 😈</p>
+        <p class="text-lg opacity-60 mb-12">Volleyball Master 😈</p>
         <button onclick="login()" class="kuromi-card px-8 py-4 font-bold shadow-xl flex items-center gap-3 btn-active">
-            <img src="https://www.google.com/favicon.ico" class="w-5 h-5"> 點此登入 Google 帳號
+            <img src="https://www.google.com/favicon.ico" class="w-5 h-5"> 點此登入 Google
         </button>
-        <p class="mt-6 text-[10px] opacity-30 px-10">數據將自動備份至您的 Google Firebase 雲端</p>
+        <p id="auth-status" class="mt-4 text-xs opacity-40">正在初始化系統...</p>
     </div>
 
-    <!-- 頁面 2: 設定 -->
+    <!-- 2. 設定頁面 -->
     <div id="page-setup" class="hidden min-h-screen p-6">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-black text-[#8B5CF6]">新比賽設定</h2>
-            <button onclick="logout()" class="text-[10px] opacity-30 underline">登出帳號</button>
+            <h2 class="text-2xl font-black text-purple-600">新比賽設定</h2>
+            <button onclick="logout()" class="text-xs opacity-30 underline">登出</button>
         </div>
         <div class="kuromi-card p-6 space-y-4 shadow-lg mb-6">
-            <div>
-                <label class="text-[10px] font-bold opacity-40 ml-2">比賽日期</label>
-                <input type="date" id="setup-date" class="w-full p-3 rounded-2xl bg-white/50 border border-purple-200">
-            </div>
-            <div>
-                <label class="text-[10px] font-bold opacity-40 ml-2">賽事種類</label>
-                <select id="setup-type" class="w-full p-3 rounded-2xl bg-white/50 border border-purple-200">
-                    <option>🏆 聯賽</option><option>📊 排位賽</option><option>🎖️ 錦標賽</option><option>🏐 普通比賽</option>
-                </select>
-            </div>
-            <div>
-                <label class="text-[10px] font-bold opacity-40 ml-2">對手球隊名字</label>
-                <input type="text" id="setup-opponent" placeholder="例如: 某某大學" class="w-full p-3 rounded-2xl bg-white/50 border border-purple-200">
-            </div>
-            <button onclick="startMatch()" class="w-full bg-[#8B5CF6] text-white py-4 rounded-[2rem] font-black text-lg btn-active shadow-lg">開始計分 😈</button>
+            <input type="date" id="setup-date" class="w-full p-3 rounded-2xl bg-white/50 border border-purple-200">
+            <select id="setup-type" class="w-full p-3 rounded-2xl bg-white/50 border border-purple-200">
+                <option>🏆 聯賽</option><option>📊 排位賽</option><option>🎖️ 錦標賽</option><option>🏐 普通比賽</option>
+            </select>
+            <input type="text" id="setup-opponent" placeholder="對手球隊名稱" class="w-full p-3 rounded-2xl bg-white/50 border border-purple-200">
+            <button onclick="startMatch()" class="w-full bg-[#8B5CF6] text-white py-4 rounded-[2rem] font-black text-lg btn-active shadow-lg">開始計分!</button>
         </div>
-        
-        <button onclick="viewHistory('setup')" class="w-full py-4 kuromi-card font-bold border-2 border-white shadow-md text-purple-600">📚 查看歷史比賽紀錄</button>
-
-        <div id="resume-section" class="hidden mt-8 p-6 border-2 border-dashed border-purple-300 rounded-[2rem] text-center bg-white/30">
-            <p class="text-xs opacity-50 mb-3">偵測到先前未完成的比賽...</p>
-            <button onclick="resumeMatch()" class="text-[#8B5CF6] font-black underline decoration-2">回復數據並繼續比賽 🔙</button>
+        <button onclick="viewHistory('setup')" class="w-full py-4 kuromi-card font-bold text-purple-600">📚 查看紀錄</button>
+        <div id="resume-section" class="hidden mt-6 p-4 border-2 border-dashed border-purple-300 rounded-[2rem] text-center">
+            <button onclick="resumeMatch()" class="text-purple-600 font-bold underline text-sm">回復上一場比賽 🔙</button>
         </div>
     </div>
 
-    <!-- 頁面 3: 計分主介面 -->
+    <!-- 3. 計分頁面 -->
     <div id="page-tracker" class="hidden min-h-screen p-4 flex flex-col">
-        <div class="flex justify-between items-center mb-4 px-2">
+        <div class="flex justify-between items-center mb-4">
             <div class="text-[10px] font-bold opacity-50 bg-white/40 px-3 py-1 rounded-full">
                 <span id="display-type"></span> | <span id="display-opponent"></span>
             </div>
             <div class="flex gap-2">
                 <button onclick="viewHistory('tracker')" class="kuromi-card px-3 py-1 text-[10px] font-bold">紀錄</button>
-                <button onclick="undo()" class="kuromi-card px-3 py-1 text-[10px] font-bold">↩ 返回</button>
+                <button onclick="undo()" class="kuromi-card px-3 py-1 text-[10px] font-bold">↩</button>
             </div>
         </div>
-
-        <!-- 比分顯示 -->
-        <div class="kuromi-card p-6 shadow-md text-center mb-4 border-2 border-white">
+        <div class="kuromi-card p-6 shadow-md text-center mb-4">
             <div class="flex justify-around items-center">
-                <div class="flex-1">
-                    <p class="text-[10px] opacity-40">我方</p>
-                    <h1 id="score-a" class="text-7xl font-black text-[#8B5CF6]">0</h1>
-                    <div id="sets-a" class="mt-2 text-sm font-black text-pink-400">Sets: 0</div>
-                </div>
-                <div class="text-4xl opacity-10 font-light">:</div>
-                <div class="flex-1">
-                    <p class="text-[10px] opacity-40">對手</p>
-                    <h1 id="score-b" class="text-7xl font-black opacity-30">0</h1>
-                    <div id="sets-b" class="mt-2 text-sm font-black opacity-20">Sets: 0</div>
-                </div>
+                <div class="flex-1"><h1 id="score-a" class="text-6xl font-black text-[#8B5CF6]">0</h1><div id="sets-a" class="text-xs font-bold text-pink-400">Sets: 0</div></div>
+                <div class="text-2xl opacity-10">:</div>
+                <div class="flex-1"><h1 id="score-b" class="text-6xl font-black opacity-30">0</h1><div id="sets-b" class="text-xs font-bold opacity-20">Sets: 0</div></div>
             </div>
         </div>
-
-        <!-- 男友狀態 -->
         <div class="flex justify-center mb-4">
-            <button id="bench-toggle" onclick="toggleBench()" class="px-10 py-2 rounded-full font-black shadow-md text-sm bg-[#FFD1E8] btn-active">😈 男友在場上</button>
+            <button id="bench-toggle" onclick="toggleBench()" class="px-8 py-2 rounded-full font-black bg-[#FFD1E8] text-sm">😈 男友在場上</button>
         </div>
-
-        <!-- 三層按鈕區 -->
-        <div id="on-court-actions" class="grid grid-cols-2 gap-3 mb-4 flex-grow overflow-y-auto pr-1"></div>
-
-        <!-- 後備按鈕區 -->
-        <div id="bench-actions" class="hidden grid grid-cols-2 gap-4 mb-4 h-48">
-            <button onclick="recordScore('A', '隊友得分', 1)" class="bg-[#A78BFA] text-white rounded-[2.5rem] font-black text-xl shadow-lg btn-active">我方得分</button>
-            <button onclick="recordScore('B', '對手得分', 3)" class="bg-[#94A3B8] text-white rounded-[2.5rem] font-black text-xl shadow-lg btn-active">對手得分</button>
+        <div id="on-court-actions" class="grid grid-cols-2 gap-2 flex-grow overflow-y-auto"></div>
+        <div id="bench-actions" class="hidden grid grid-cols-2 gap-4 h-40">
+            <button onclick="recordScore('A', '隊友得分', 1)" class="bg-purple-400 text-white rounded-3xl font-bold">我方得分</button>
+            <button onclick="recordScore('B', '對手得分', 3)" class="bg-gray-400 text-white rounded-3xl font-bold">對手得分</button>
         </div>
-
-        <textarea id="match-memo" oninput="autoSaveLocal()" placeholder="在此輸入比賽心得或備註..." class="w-full p-4 rounded-2xl bg-white/40 text-sm h-16 outline-none mt-auto shadow-inner"></textarea>
+        <textarea id="match-memo" oninput="autoSaveLocal()" placeholder="備註..." class="w-full p-3 rounded-xl bg-white/40 text-xs h-12 outline-none mt-2"></textarea>
     </div>
 
-    <!-- 頁面 4: 歷史紀錄清單與詳情 -->
+    <!-- 4. 歷史紀錄頁面 -->
     <div id="page-history" class="hidden min-h-screen p-6">
-        <div class="flex items-center gap-4 mb-8">
-            <button onclick="backFromHistory()" class="bg-white p-2 rounded-full shadow-sm text-lg">←</button>
-            <h2 class="text-2xl font-black">歷史紀錄 📊</h2>
-        </div>
-        <div id="history-list" class="space-y-6"></div>
+        <button onclick="backFromHistory()" class="mb-4 text-purple-600 font-bold">← 返回</button>
+        <div id="history-list" class="space-y-4"></div>
     </div>
 
-    <!-- 結算彈窗 -->
+    <!-- 彈窗 -->
     <div id="modal-confirm" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 z-[100]">
-        <div class="bg-white rounded-[3rem] p-8 w-full max-w-sm text-center border-4 border-[#F3E8FF]">
-            <h2 class="text-2xl font-black mb-2 text-[#8B5CF6]">本局結束？</h2>
-            <p id="modal-score" class="text-xl font-bold opacity-40 mb-8">25 : 23</p>
-            <button onclick="confirmSet()" class="w-full py-5 bg-[#8B5CF6] text-white rounded-full font-black text-lg shadow-xl mb-4 btn-active">確定結算本局</button>
-            <button onclick="closeModal()" class="w-full py-4 bg-gray-100 rounded-full font-bold text-gray-400 btn-active">按錯了，返回</button>
+        <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-sm text-center">
+            <h2 class="text-xl font-black mb-6">本局結束？</h2>
+            <button onclick="confirmSet()" class="w-full py-4 bg-[#8B5CF6] text-white rounded-full font-bold mb-3">確定結算</button>
+            <button onclick="closeModal()" class="w-full py-4 bg-gray-100 rounded-full font-bold text-gray-400">返回</button>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, setPersistence, browserLocalPersistence, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, setDoc, doc, getDocs, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -148,58 +108,62 @@
             appId: "1:739236472230:web:30e594b0b641e491245b67"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
+        // --- 除錯工具 ---
+        const logError = (err) => {
+            const display = document.getElementById('error-display');
+            display.innerText = "Error: " + err;
+            display.classList.remove('hidden');
+            console.error(err);
+        };
 
-        let currentUser = null;
+        let app, auth, db, currentUser;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) { logError("Firebase Init Fail: " + e.message); }
+
+        const provider = new GoogleAuthProvider();
         let matchDocId = null;
-        let pageHistorySource = 'setup';
         let matchData = { scoreA: 0, scoreB: 0, setsA: 0, setsB: 0, isBench: false, logs: [], setsHistory: {}, info: {} };
         let historyStack = [];
+        let historySource = 'setup';
 
-        // --- 登入狀態監控 (自動接回登入) ---
-        setPersistence(auth, browserLocalPersistence).then(() => {
-            getRedirectResult(auth).catch(e => console.error("Login Error", e));
-            onAuthStateChanged(auth, (user) => {
-                document.getElementById('loading').classList.add('hidden');
-                if (user) {
-                    currentUser = user;
-                    showPage('setup');
-                    checkLocalSave();
-                } else {
-                    showPage('login');
-                }
-            });
+        // --- 狀態監聽 ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                showPage('setup');
+                checkLocalSave();
+            } else {
+                showPage('login');
+                document.getElementById('auth-status').innerText = "請登入以同步雲端數據";
+            }
         });
 
-        window.login = () => signInWithRedirect(auth, provider);
-        window.logout = () => { if(confirm("確定要登出嗎？")) signOut(auth); };
+        // 檢查 Redirect 結果
+        getRedirectResult(auth).catch(e => logError("Login Redirect Error: " + e.message));
+
+        window.login = () => {
+            document.getElementById('auth-status').innerText = "正在跳轉 Google 登入...";
+            signInWithRedirect(auth, provider);
+        };
+
+        window.logout = () => { if(confirm("確定登出？")) signOut(auth).then(() => location.reload()); };
 
         window.showPage = (id) => {
             ['login', 'setup', 'tracker', 'history'].forEach(p => document.getElementById('page-' + p).classList.add('hidden'));
             document.getElementById('page-' + id).classList.remove('hidden');
         };
 
-        // --- 比賽邏輯 ---
         window.startMatch = () => {
             const opp = document.getElementById('setup-opponent').value;
-            if (!opp) return alert("😈 記得填寫對手球隊名字喔！");
-            
+            if (!opp) return alert("請輸入對手名字");
             matchDocId = "match_" + Date.now();
-            matchData.info = { 
-                date: document.getElementById('setup-date').value, 
-                type: document.getElementById('setup-type').value, 
-                opponent: opp, 
-                timestamp: Date.now() 
-            };
-            
-            document.getElementById('display-type').innerText = matchData.info.type;
-            document.getElementById('display-opponent').innerText = matchData.info.opponent;
-            updateDisplay();
+            matchData.info = { date: document.getElementById('setup-date').value, type: document.getElementById('setup-type').value, opponent: opp, timestamp: Date.now() };
             showPage('tracker');
             renderActions();
+            updateDisplay();
             autoSaveLocal();
         };
 
@@ -208,15 +172,7 @@
             const resTxt = level === 1 ? "得分" : (level === 2 ? "成功" : "失敗");
             if (level === 1) matchData.scoreA++;
             if (level === 3) matchData.scoreB++;
-
-            matchData.logs.unshift({ 
-                time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}), 
-                action, 
-                result: resTxt, 
-                score: `${matchData.scoreA}:${matchData.scoreB}`,
-                isBench: matchData.isBench
-            });
-
+            matchData.logs.unshift({ time: new Date().toLocaleTimeString(), action, result: resTxt, score: `${matchData.scoreA}:${matchData.scoreB}` });
             updateDisplay();
             autoSaveLocal();
             checkSetEnd();
@@ -224,20 +180,21 @@
 
         window.confirmSet = async () => {
             const setNum = (matchData.setsA + matchData.setsB + 1).toString();
-            // 存入這局的紀錄
             matchData.setsHistory[setNum] = { score: `${matchData.scoreA}:${matchData.scoreB}`, logs: [...matchData.logs] };
-            
             if (matchData.scoreA > matchData.scoreB) matchData.setsA++; else matchData.setsB++;
             
-            await saveToCloud(); // 結算立即雲端備份
+            try {
+                await setDoc(doc(db, "matches", matchDocId), {
+                    userId: currentUser.uid, info: matchData.info, finalSets: `${matchData.setsA}:${matchData.setsB}`,
+                    setsHistory: matchData.setsHistory, memo: document.getElementById('match-memo').value, createdAt: new Date()
+                });
+            } catch (e) { logError("Save Fail: " + e.message); }
 
             if (matchData.setsA === 3 || matchData.setsB === 3) {
-                alert("全場比賽結束！所有數據已同步至雲端 😈");
+                alert("比賽結束！數據已存檔");
                 localStorage.removeItem('kuromi_match_temp');
-                resetMatch();
-                showPage('setup');
+                location.reload();
             } else {
-                // 開新局
                 matchData.scoreA = 0; matchData.scoreB = 0; matchData.logs = [];
                 updateDisplay();
                 document.getElementById('modal-confirm').classList.add('hidden');
@@ -245,156 +202,85 @@
             }
         };
 
-        async function saveToCloud() {
-            if (!currentUser || !matchDocId) return;
-            try {
-                await setDoc(doc(db, "matches", matchDocId), {
-                    userId: currentUser.uid,
-                    info: matchData.info,
-                    finalSets: `${matchData.setsA}:${matchData.setsB}`,
-                    setsHistory: matchData.setsHistory,
-                    memo: document.getElementById('match-memo').value,
-                    createdAt: new Date()
-                });
-            } catch (e) { console.error("Cloud Save Fail", e); }
-        }
-
-        // --- 歷史紀錄渲染 (支持分局查看) ---
         window.viewHistory = async (source) => {
-            pageHistorySource = source;
+            historySource = source;
             showPage('history');
             const list = document.getElementById('history-list');
-            list.innerHTML = "<div class='text-center py-10 opacity-30 animate-pulse font-bold'>正在召喚數據紀錄... 😈</div>";
-            
+            list.innerHTML = "讀取中...";
             try {
                 const q = query(collection(db, "matches"), where("userId", "==", currentUser.uid), orderBy("createdAt", "desc"));
                 const snap = await getDocs(q);
-                list.innerHTML = "";
-                
-                if (snap.empty) list.innerHTML = "<p class='text-center py-20 opacity-30 italic'>目前還沒有比賽紀錄喔</p>";
-
+                list.innerHTML = snap.empty ? "無紀錄" : "";
                 snap.forEach(d => {
                     const m = d.data();
                     const mid = d.id;
                     const sets = Object.keys(m.setsHistory).sort();
-                    window["hData_" + mid] = m.setsHistory;
-
+                    window["hData_"+mid] = m.setsHistory;
                     list.innerHTML += `
-                        <div class="kuromi-card p-6 mb-4 shadow-sm border-2 border-white">
-                            <div class="flex justify-between text-[10px] font-bold mb-2 opacity-50">
-                                <span>${m.info.date}</span><span>${m.info.type}</span>
+                        <div class="kuromi-card p-4 mb-2">
+                            <p class="text-[10px] opacity-40">${m.info.date} | ${m.info.type}</p>
+                            <p class="font-bold">vs ${m.info.opponent} (${m.finalSets})</p>
+                            <div class="flex gap-2 my-2 overflow-x-auto">
+                                ${sets.map(k => `<button onclick="showSetDetail('${mid}', '${k}')" class="bg-white px-3 py-1 rounded-full text-[10px] border border-purple-200">第${k}局</button>`).join('')}
                             </div>
-                            <p class="font-black text-xl mb-3">vs ${m.info.opponent} <span class="text-[#8B5CF6] ml-2">${m.finalSets}</span></p>
-                            <div class="flex gap-2 mb-4 overflow-x-auto py-1 scroll-hide">
-                                ${sets.map(k => `<button onclick="showSetDetail('${mid}', '${k}')" class="set-tab-btn" id="btn-${mid}-${k}">第 ${k} 局</button>`).join('')}
-                            </div>
-                            <div id="det-${mid}" class="hidden text-[10px] bg-white/50 p-4 rounded-2xl max-h-60 overflow-y-auto shadow-inner space-y-1"></div>
-                            <p class="text-[10px] opacity-40 mt-3 italic">${m.memo || ""}</p>
+                            <div id="det-${mid}" class="hidden text-[10px] bg-white/50 p-2 rounded-lg max-h-40 overflow-y-auto"></div>
                         </div>`;
                 });
-            } catch(e) { list.innerHTML = "讀取失敗，請確認網路連線"; }
+            } catch (e) { logError("History Load Fail: " + e.message); }
         };
 
         window.showSetDetail = (mid, k) => {
             const div = document.getElementById('det-'+mid);
             const data = window["hData_"+mid][k];
             div.classList.remove('hidden');
-            document.querySelectorAll(`[id^="btn-${mid}-"]`).forEach(b => b.classList.remove('active'));
-            document.getElementById(`btn-${mid}-${k}`).classList.add('active');
-            
-            div.innerHTML = `<p class="font-black text-purple-600 border-b border-purple-200 pb-2 mb-2">最終比分: ${data.score}</p>` + 
-                data.logs.map(l => `<div class="flex justify-between border-b border-white/40 py-1"><span>${l.time} ${l.action}${l.result}</span> <span class="opacity-40 font-bold">${l.score}</span></div>`).join('');
+            div.innerHTML = `<p class="font-bold">比分: ${data.score}</p>` + data.logs.map(l => `<div>${l.time} - ${l.action}${l.result} (${l.score})</div>`).join('');
         };
 
-        // --- 基礎工具 ---
         window.autoSaveLocal = () => localStorage.setItem('kuromi_match_temp', JSON.stringify({matchData, matchDocId}));
-        
         window.resumeMatch = () => {
             const saved = JSON.parse(localStorage.getItem('kuromi_match_temp'));
-            if (saved) { 
-                matchData = saved.matchData; 
-                matchDocId = saved.matchDocId; 
-                document.getElementById('match-memo').value = matchData.memo || ""; 
-                document.getElementById('display-type').innerText = matchData.info.type;
-                document.getElementById('display-opponent').innerText = matchData.info.opponent;
-                updateDisplay(); 
-                toggleBenchUI(); 
-                showPage('tracker'); 
-                renderActions(); 
-            }
+            if (saved) { matchData = saved.matchData; matchDocId = saved.matchDocId; updateDisplay(); showPage('tracker'); renderActions(); }
         };
-
-        function checkLocalSave() { 
-            if (localStorage.getItem('kuromi_match_temp')) document.getElementById('resume-section').classList.remove('hidden'); 
-            else document.getElementById('resume-section').classList.add('hidden');
-        }
-
-        window.backFromHistory = () => showPage(pageHistorySource);
-        
-        window.undo = () => { 
-            if(historyStack.length > 0) { 
-                matchData = historyStack.pop(); 
-                updateDisplay(); 
-                autoSaveLocal(); 
-            } else {
-                alert("沒有動作可以撤回了喔！");
-            }
-        };
-
+        function checkLocalSave() { if(localStorage.getItem('kuromi_match_temp')) document.getElementById('resume-section').classList.remove('hidden'); }
+        window.backFromHistory = () => showPage(historySource);
+        window.undo = () => { if(historyStack.length > 0) { matchData = historyStack.pop(); updateDisplay(); } };
         window.closeModal = () => document.getElementById('modal-confirm').classList.add('hidden');
-
-        window.toggleBench = () => { matchData.isBench = !matchData.isBench; toggleBenchUI(); autoSaveLocal(); };
-
-        function updateDisplay() { 
-            document.getElementById('score-a').innerText = matchData.scoreA; 
-            document.getElementById('score-b').innerText = matchData.scoreB; 
-            document.getElementById('sets-a').innerText = "Sets: " + matchData.setsA; 
-            document.getElementById('sets-b').innerText = "Sets: " + matchData.setsB; 
-        }
-
-        function toggleBenchUI() {
+        window.toggleBench = () => {
+            matchData.isBench = !matchData.isBench;
             const btn = document.getElementById('bench-toggle');
-            if (matchData.isBench) { 
-                btn.innerText = "😴 男友後備中"; btn.style.backgroundColor = "#E2E8F0"; 
-                document.getElementById('on-court-actions').classList.add('hidden'); 
-                document.getElementById('bench-actions').classList.remove('hidden'); 
-            } else { 
-                btn.innerText = "😈 男友在場上"; btn.style.backgroundColor = "#FFD1E8"; 
-                document.getElementById('on-court-actions').classList.remove('hidden'); 
-                document.getElementById('bench-actions').classList.add('hidden'); 
-            }
+            btn.innerText = matchData.isBench ? "😴 男友後備中" : "😈 男友在場上";
+            btn.style.backgroundColor = matchData.isBench ? "#E2E8F0" : "#FFD1E8";
+            document.getElementById('on-court-actions').classList.toggle('hidden', matchData.isBench);
+            document.getElementById('bench-actions').classList.toggle('hidden', !matchData.isBench);
+        };
+        function updateDisplay() {
+            document.getElementById('score-a').innerText = matchData.scoreA;
+            document.getElementById('score-b').innerText = matchData.scoreB;
+            document.getElementById('sets-a').innerText = "Sets: " + matchData.setsA;
+            document.getElementById('sets-b').innerText = "Sets: " + matchData.setsB;
+            document.getElementById('display-type').innerText = matchData.info.type || "";
+            document.getElementById('display-opponent').innerText = matchData.info.opponent || "";
         }
-
         function renderActions() {
             const grid = document.getElementById('on-court-actions');
             grid.innerHTML = '';
             ['殺球', '攔網', '開球', '接球'].forEach(act => {
                 grid.innerHTML += `
-                    <div class="kuromi-card p-3 flex flex-col gap-2 shadow-sm border border-white">
-                        <p class="font-black text-center text-xs text-purple-800">${act}</p>
-                        <button onclick="recordScore('A', '${act}', 1)" class="action-btn bg-[#FFD1E8]">得分(+1)</button>
-                        <button onclick="recordScore('A', '${act}', 2)" class="action-btn bg-[#E9D5FF] text-purple-700">過網(繼續)</button>
-                        <button onclick="recordScore('B', '${act}', 3)" class="action-btn bg-[#4C1D95] text-white">失敗(對手+1)</button>
+                    <div class="kuromi-card p-3 flex flex-col gap-1 text-center">
+                        <p class="font-bold text-[10px]">${act}</p>
+                        <button onclick="recordScore('A', '${act}', 1)" class="bg-[#FFD1E8] text-[9px] py-2 rounded-lg font-bold">得分</button>
+                        <button onclick="recordScore('A', '${act}', 2)" class="bg-[#E9D5FF] text-[9px] py-2 rounded-lg font-bold">過網</button>
+                        <button onclick="recordScore('B', '${act}', 3)" class="bg-[#4C1D95] text-white text-[9px] py-2 rounded-lg font-bold">失敗</button>
                     </div>`;
             });
         }
-
-        function resetMatch() { 
-            matchData = { scoreA: 0, scoreB: 0, setsA: 0, setsB: 0, isBench: false, logs: [], setsHistory: {}, info: {} }; 
-            matchDocId = null; 
-            updateDisplay(); 
-            document.getElementById('modal-confirm').classList.add('hidden'); 
-            checkLocalSave();
+        function checkSetEnd() {
+            const target = (matchData.setsA + matchData.setsB === 4) ? 15 : 25;
+            if ((matchData.scoreA >= target || matchData.scoreB >= target) && Math.abs(matchData.scoreA - matchData.scoreB) >= 2) {
+                document.getElementById('modal-score').innerText = `${matchData.scoreA} : ${matchData.scoreB}`;
+                document.getElementById('modal-confirm').classList.remove('hidden');
+            }
         }
-
-        function checkSetEnd() { 
-            const target = (matchData.setsA + matchData.setsB === 4) ? 15 : 25; 
-            if ((matchData.scoreA >= target || matchData.scoreB >= target) && Math.abs(matchData.scoreA - matchData.scoreB) >= 2) { 
-                document.getElementById('modal-score').innerText = `${matchData.scoreA} : ${matchData.scoreB}`; 
-                document.getElementById('modal-confirm').classList.remove('hidden'); 
-            } 
-        }
-
         document.getElementById('setup-date').valueAsDate = new Date();
     </script>
 </body>
